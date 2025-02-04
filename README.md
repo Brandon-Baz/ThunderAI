@@ -48,6 +48,21 @@ In any custom prompt you can use additional **[data placeholders](https://micz.i
 > 
 > There is also an option to remove the "v1" segment from the API url, if needed, and to manually set the model name if the server doesn't have a models list endpoint (like Gemini).
 
+<br>
+
+> [!TIP]
+> **Using Generic Middleware**
+>
+> You can now use a generic middleware that exposes OpenAI-compatible endpoints. This middleware can be used by any application to interact with the OpenAI API.
+> 
+> To configure the generic middleware, follow these steps:
+> 
+> 1. Go to the options page of the ThunderAI addon.
+> 2. Select "Generic Middleware" from the connection type dropdown.
+> 3. Enter the host URL, model name, and API key (if required) for the middleware.
+> 4. Save the settings.
+> 
+> The middleware will now be available for use with any application that supports OpenAI-compatible endpoints.
 
 <br>
 
