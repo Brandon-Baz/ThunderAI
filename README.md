@@ -13,6 +13,32 @@ In any custom prompt you can use additional **[data placeholders](https://micz.i
 
 <br>
 
+## ChatGPT Web Session Management
+
+ThunderAI now supports seamless integration with the ChatGPT web interface using a logged-in session. This feature allows users to interact with ChatGPT without requiring an API key, leveraging the web session for authentication.
+
+### How It Works
+1. **Session Authentication**: ThunderAI automatically checks if the ChatGPT session is authenticated. If not, it prompts the user to log in to the ChatGPT web interface.
+2. **Session State Maintenance**: The session state is maintained using browser cookies, ensuring uninterrupted interactions with ChatGPT.
+
+### Configuration Options
+- **Model Selection**: Users can specify the ChatGPT model to use (e.g., `gpt-4o`, `gpt-4`, etc.) in the options page.
+- **Temporary Chat**: Enable or disable the use of temporary chats for specific interactions.
+- **Custom Prompts**: Define and manage custom prompts to tailor ChatGPT responses to your needs.
+
+### Deployment Instructions
+To deploy ThunderAI with ChatGPT Web Session Management:
+1. Ensure the browser extension is installed and permissions for `https://*.chatgpt.com/*` are granted.
+2. Open the options page and configure the desired ChatGPT model and session settings.
+3. Use the "Open ChatGPT Tab" button in the options page to log in to ChatGPT if not already authenticated.
+
+For advanced users, the middleware service can be deployed in its own repository. Configure the following environment variables:
+- `CHATGPT_SESSION_URL`: The endpoint URL for session authentication.
+- `CHATGPT_API_URL`: The endpoint URL for sending prompts.
+- `SESSION_REFRESH_INTERVAL`: Interval (in seconds) to refresh the session state.
+
+For more details, refer to the [documentation](https://micz.it/thunderbird-addon-thunderai/).
+
 
 > [!TIP]
 > **Using ChatGPT**

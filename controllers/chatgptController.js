@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { processChatSession } from '../services/chatgptSession.js';
+import { sendPrompt, isSessionAuthenticated } from '../services/chatgptSessionManager.js';
 import { taLogger } from '../js/mzta-logger.js';
 
 const logger = new taLogger('chatgptController', true);
@@ -36,16 +36,22 @@ export const sendPrompt = async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields: prompt or actionType' });
         }
 
+        // Check if session is authenticated
+        if (!isSessionAuthenticated()) {
+            logger.error('ChatGPT session is not authenticated.');
+            return res.status(401).json({ error: 'Session not authenticated. Please log in to ChatGPT.' });
+        }
+
         logger.log(`Received prompt: ${prompt}, actionType: ${actionType}`);
 
-        // Process the chat session
-        const response = await processChatSession({ prompt, actionType });
+        // Send the prompt to ChatGPT
+        const response = await sendPrompt(prompt, { actionType });
 
         // Send the response back to the client
-        logger.log('Chat session processed successfully');
+        logger.log('Prompt sent successfully');
         return res.status(200).json(response);
     } catch (error) {
-        logger.error(`Error processing chat session: ${error.message}`);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        logger.error(`Error sending prompt: ${error.message}`);
+        return res.status(500).json({ error: `Failed to process the request: ${error.message}` });
     }
 };
