@@ -39,6 +39,14 @@ For advanced users, the middleware service can be deployed in its own repository
 
 For more details, refer to the [documentation](https://micz.it/thunderbird-addon-thunderai/).
 
+<br>
+
+## Web Session Analysis
+
+For developers and advanced users, a detailed analysis of the web session handling implementation is available. This document provides insights into session management, request/response patterns, browser integration, and more.
+
+[Read the Web Session Analysis](docs/ChatGPT_Web_Session_Analysis.md)
+
 
 > [!TIP]
 > **Using ChatGPT**
