@@ -20,12 +20,12 @@
  *  The original code has been released under the Apache License, Version 2.0.
  */
 
-import { placeholdersUtils } from '../js/mzta-placeholders.js';
+// Import session manager for authentication
+import { authenticateSession, isSessionAuthenticated, sendPrompt } from '../services/chatgptSessionManager.js';
 
 // Get the LLM to be used
 const urlParams = new URLSearchParams(window.location.search);
 const llm = urlParams.get('llm');
-const call_id = urlParams.get('call_id');
 const ph_def_val = urlParams.get('ph_def_val');
 
 // Data received from the user
@@ -34,10 +34,18 @@ let promptData = null;
 const messageInput = document.querySelector('message-input');
 const messagesArea = document.querySelector('messages-area');
 
-//console.log(">>>>>>>>>> controller.js DOMContentLoaded");
+// Logging for debugging
+console.log("Controller initialized with LLM:", llm);
 
-// console.log(">>>>>>>>>>> llm: " + llm);
-// console.log(">>>>>>>>>>> call_id: " + call_id);
+// Ensure session is authenticated before proceeding
+(async () => {
+    const isAuthenticated = await authenticateSession();
+    if (!isAuthenticated) {
+        console.error("Session not authenticated. Please log in.");
+        throw new Error("Session not authenticated.");
+    }
+    console.log("Session authenticated successfully.");
+})();
 
 // The controller wires up all the components and workers together,
 // managing the dependencies. A kind of "DI" class.
@@ -115,8 +123,6 @@ switch (llm) {
     }
 }
 
-//let prefs_ph = await browser.storage.sync.get({placeholders_use_default_value: false});
-
 // Event listeners for worker messages
 worker.onmessage = function(event) {
     const { type, payload } = event.data;
@@ -141,32 +147,28 @@ worker.onmessage = function(event) {
     }
 };
 
-// handling commands from the backgound page
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    switch (message.command) {
+// Middleware service logic for handling messages
+window.addEventListener("message", async (event) => {
+    const { command, prompt, options } = event.data;
+
+    switch (command) {
         case "api_send":
-            //send the received prompt to the llm api
-            if(message.do_custom_text=="1") {
-                let userInput = prompt(browser.i18n.getMessage("chatgpt_win_custom_text"));
-                if(userInput !== null) {
-                    if(!placeholdersUtils.hasPlaceholder(message.prompt, 'additional_text')){
-                        // no additional_text placeholder, do as usual
-                        message.prompt += " " + userInput;
-                    }else{
-                        // we have the additional_text placeholder, do the magic!
-                        let finalSubs = {};
-                        finalSubs["additional_text"] = userInput;
-                        message.prompt = placeholdersUtils.replacePlaceholders(message.prompt, finalSubs, ph_def_val==='1')
-                    }
-                }
+            try {
+                const response = await sendPrompt(prompt, options);
+                console.log("Prompt sent successfully:", response);
+                messagesArea.appendBotMessage(response, 'success');
+            } catch (error) {
+                console.error("Error sending prompt:", error.message);
+                messagesArea.appendBotMessage(error.message, 'error');
             }
-            promptData = message;
-            messageInput._setMessageInputValue(message.prompt);
-            messageInput._handleNewChatMessage();
             break;
+
         case "api_error":
-            messagesArea.appendBotMessage(message.error,'error');
-            messageInput.enableInput();
+            console.error("API Error:", event.data.error);
+            messagesArea.appendBotMessage(event.data.error, 'error');
             break;
+
+        default:
+            console.warn("Unknown command received:", command);
     }
 });

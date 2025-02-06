@@ -30,56 +30,24 @@ let current_mailMessageId = null;
 let selectionChangeTimeout = null;
 let isDragging = false;
 
-async function chatgpt_sendMsg(msg, method ='') {       // return -1 send button not found, -2 textarea not found
-    let textArea = document.getElementById('prompt-textarea')
-    let old_textArea = false;
-    if(!textArea){
-        textArea = document.querySelector('form textarea');
-        old_textArea = true;
+async function chatgpt_sendMsg(prompt, options = {}) {
+    try {
+        const response = await sendPrompt(prompt, options);
+        console.log("Prompt sent successfully:", response);
+        return response;
+    } catch (error) {
+        console.error("Error sending prompt:", error.message);
+        throw error;
     }
-    //check if the textarea has been found
-    if(!textArea) {
-        console.error("[ThunderAI] Textarea not found!");
-        return -2;
-    }
-    if(old_textArea){
-        textArea.value = msg;
-        textArea.dispatchEvent(new Event('input', { bubbles: true })); // enable send button
-    } else {    // from sept 2024
-        textArea.innerText = msg;
-        textArea.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    //wait for the button to change from the audio button to the send button (from nov-2024)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    let sendButton = document.querySelector('[data-testid="send-button"]') // pre-GPT-4o
-        || document.querySelector('path[d*="M15.1918 8.90615C15.6381"]')?.parentNode.parentNode  // from sept-2024;
-        || document.querySelector('path[d*="M15.192 8.906a1.143"]')?.parentNode.parentNode;  // post-GPT-4o;
-    //check if the sendbutton has been found
-    if (!sendButton) {
-        console.error("[ThunderAI] Send button not found!");
-        return -1;
-    }
-    const delaySend = setInterval(() => {
-        //console.log(">>>>>>>>>> sendButton disabled: " + sendButton?.hasAttribute('disabled'));
-        if (!sendButton?.hasAttribute('disabled')) { // send msg
-            method.toLowerCase() == 'click' ? sendButton.click()
-                : textArea.dispatchEvent(new KeyboardEvent('keydown', { keyCode: 13, bubbles: true }));
-            clearInterval(delaySend);
-        }else{
-            //console.error(">>>>>>>>>> The sendButton seems to be disabled! Trying again...");
-         sendButton = document.querySelector('path[d*="M15.192 8.906a1.143"]')?.parentNode.parentNode  // post-GPT-4o;
-            || document.querySelector('[data-testid="send-button"]');
-        }
-    }, 25);
-    return 0;   //everything is ok
 }
 
 async function chatgpt_isIdle() {
-    return new Promise(resolve => {
-        const intervalId = setInterval(() => {
-            if (chatgpt_getRegenerateButton() || do_force_completion) {
-                clearInterval(intervalId); resolve(true);
-}}, 100);});}
+    if (!isSessionAuthenticated()) {
+        console.error("Session is not authenticated. Please log in.");
+        throw new Error("Session not authenticated.");
+    }
+    return true;
+}
 
 function chatgpt_getRegenerateButton() {
     for (const mainSVG of document.querySelectorAll('main svg.icon-md')) {
@@ -163,53 +131,6 @@ function addCustomDiv(prompt_action,tabId,mailMessageId) {
     });
     fixedDiv.appendChild(force_completion_div);
 
-    // span for the text
-    var curr_msg = document.createElement('span');
-    curr_msg.id='mzta-curr_msg';
-    curr_msg.textContent = browser.i18n.getMessage("chatgpt_win_working");
-    curr_msg.style.display = 'block';
-    fixedDiv.appendChild(curr_msg);
-
-    var loading = document.createElement('img');
-    loading.src = browser.runtime.getURL("/images/loading.gif");
-    loading.id = "mzta-loading";
-    fixedDiv.appendChild(loading);
-
-    var btn_ok = document.createElement('button');
-    btn_ok.id="mzta-btn_ok";
-    btn_ok.classList.add('mzta-btn');
-    //console.log('default: '+prompt_action)
-    switch(String(prompt_action)){ 
-        default:
-        case "0":     // close window
-            btn_ok.textContent = browser.i18n.getMessage("chatgpt_win_close");
-            btn_ok.onclick = async function() {
-                browser.runtime.sendMessage({command: "chatgpt_close", window_id: mztaWinId});
-            };
-            break;
-        case "1":     // do reply
-            btn_ok.disabled = true;
-            btn_ok.textContent = browser.i18n.getMessage("chatgpt_win_get_answer");
-            btn_ok.onclick = async function() {
-                const response = getSelectedHtml();
-                await browser.runtime.sendMessage({command: "chatgpt_replyMessage", text: response, tabId: tabId, mailMessageId: mailMessageId});
-                browser.runtime.sendMessage({command: "chatgpt_close", window_id: mztaWinId});
-            };
-            break;
-        case "2":     // replace text
-            btn_ok.disabled = true;
-            btn_ok.textContent = browser.i18n.getMessage("chatgpt_win_get_answer");
-            btn_ok.onclick = async function() {
-                const response = getSelectedHtml();
-                //console.log('replace text: '+tabId)
-                await browser.runtime.sendMessage({command: "chatgpt_replaceSelectedText", text: response, tabId: tabId, mailMessageId: mailMessageId});
-                browser.runtime.sendMessage({command: "chatgpt_close", window_id: mztaWinId});
-            };
-            break;
-    }
-    btn_ok.style.display = 'none';
-    fixedDiv.appendChild(btn_ok);
-
     //div per custom text
     let customDiv = document.createElement('div');
     customDiv.id = 'mzta-custom_text';
@@ -258,7 +179,6 @@ function checkGPTModel(model) { //TODO
     // Set up an interval that checks the value every 100 milliseconds
     const intervalId = setInterval(() => {
       // Get the '.text-token-text-secondary' element
-     // const element = document.querySelector('div#radix-\\\\:ri2\\\\: > div > span.text-token-text-secondary');
      const elements = document.querySelectorAll('[id*=radix] span')
 
      for(element of elements){
@@ -284,15 +204,7 @@ function checkGPTModel(model) { //TODO
 
 
 function operation_done(){
-    let curr_msg = document.getElementById('mzta-curr_msg');
-    curr_msg.textContent = browser.i18n.getMessage("chatgpt_win_job_completed");
-    if(current_action != '0'){
-        curr_msg.textContent += " " + browser.i18n.getMessage("chatgpt_win_job_completed_select"); 
-    }
-    curr_msg.style.display = 'block';
-    document.getElementById('mzta-btn_ok').style.display = 'inline';
-    document.getElementById('mzta-loading').style.display = 'none';
-    document.getElementById('mzta-force-completion').style.display = 'none';
+    /* Removed Thunderbird-specific UI elements */
     chatpgt_scrollToBottom();
 }
 
@@ -311,12 +223,7 @@ async function doProceed(message, customText = ''){
         await checkGPTModel(_gpt_model);
     }
     let final_prompt = message.prompt;
-// console.log(">>>>>>>>>>>> doProceed customText: " + customText);
-// console.log(">>>>>>>>>>>> doProceed final_prompt: " + final_prompt);
-// console.log(">>>>>>>>>>>> doProceed mztaPhDefVal: " + JSON.stringify(mztaPhDefVal));
-    //check if there is che additional_text placeholder
     if(final_prompt.includes('{%additional_text%}')){
-        // console.log(">>>>>>>>>>>> found ph customText: " + customText);
         final_prompt = final_prompt.replace('{%additional_text%}', customText || (mztaPhDefVal == '1'?'':'{%additional_text%}'));
     }else{
         if(customText != ''){
@@ -325,7 +232,6 @@ async function doProceed(message, customText = ''){
     }
 
     let send_result = await chatgpt_sendMsg(final_prompt,'click');
-    //console.log(">>>>>>>>>>> send_result: " + send_result);
     switch(send_result){
         case -1:        // send button not found
             let curr_msg = document.getElementById('mzta-curr_msg');
@@ -375,10 +281,8 @@ function removeTagsAndReturnHTML(rootElement, removeTags, preserveTags) {
         while (child) {
             const nextSibling = child.nextSibling;
             if (preserveTags.includes(child.nodeName.toLowerCase())) {
-                //console.log(">>>>>>>>>>>> preserve child: " + child.tagName.toLowerCase());
                 fragment.appendChild(child);
             } else if (child.nodeType === Node.ELEMENT_NODE) {
-                //console.log(">>>>>>>>>>>> handleElement(child): " + child.tagName.toLowerCase());
                 handleElement(child);
             }
             child = nextSibling;
@@ -391,21 +295,17 @@ function removeTagsAndReturnHTML(rootElement, removeTags, preserveTags) {
             handleElement(element);
             element.parentNode.insertBefore(fragment.cloneNode(true), element);
             element.parentNode.removeChild(element);
-            //console.log(">>>>>>>>>>>> removeChild: " + element.tagName.toLowerCase());
         });
     });
 
     replaceNewlinesWithBr(rootElement);
-    //console.log(">>>>>>>>>>>> rootElement.innerHTML: " + rootElement.innerHTML);
-    // Return the updated HTML as a string
     return rootElement.innerHTML;
 }
 
-// Replace newline characters with <br> tags
 function replaceNewlinesWithBr(node) {
     for (let child of Array.from(node.childNodes)) {
         if (child.nodeType === Node.TEXT_NODE) {
-            const parts = child.textContent.split('\\n');
+            const parts = child.textContent.split('\\\n');
             if (parts.length > 1) {
                 const fragment = document.createDocumentFragment();
                 parts.forEach((part, index) => {
@@ -423,40 +323,27 @@ function replaceNewlinesWithBr(node) {
 }
 
 function getSelectedHtml() {
-    // Get the Selection object
     var selection = window.getSelection();
     
     if (selection.rangeCount > 0) {
-        // Get the first selected range
         var range = selection.getRangeAt(0);
-        
-        // Create a new temporary div
         var tempDiv = document.createElement("div");
-        
-        // Clone the contents of the range into the temporary div
         tempDiv.appendChild(range.cloneContents());
-        
-        // Return the HTML of the selected content
-        return tempDiv.innerHTML.replace(/^<p>&quot;/, '<p>').replace(/&quot;<\\/p>$/, '</p>'); // strip quotation marks;
+        return tempDiv.innerHTML.replace(/^<p>&quot;/, '<p>').replace(/&quot;<\\/p>$/, '</p>'); 
     }
     return "";
 }
 
 function isSomethingSelected() {
-    // Get the Selection object
     var selection = window.getSelection();
-    
-    // Check if the selection range count is greater than 0 and the selection is not empty
     return selection.rangeCount > 0 && !selection.isCollapsed;
 }
 
 document.addEventListener("selectionchange", function() {
-     // Clear any previous timeout to reset the delay
      clearTimeout(selectionChangeTimeout);
      if(current_action === '0'){
          return;
      }
-     // Set a timeout to delay the execution of the callback
      selectionChangeTimeout = setTimeout(function() {
         let btn_ok = document.getElementById('mzta-btn_ok');
         if (isSomethingSelected()) {
@@ -466,16 +353,14 @@ document.addEventListener("selectionchange", function() {
             btn_ok.disabled = true;
             btn_ok.classList.add('btn_disabled');
         }
-     }, 300); // Delay in milliseconds
+     }, 300);
 });
 
 function selectContentOnMouseDown(event) {
-    // Reset the dragging flag when the mouse is pressed down
     isDragging = false;
 }
 
 function selectContentOnMouseMove(event) {
-    // Set the dragging flag to true if the mouse moves
     isDragging = true;
 }
 
@@ -483,18 +368,12 @@ function selectContentOnMouseUp(event) {
     var excludedArea = document.querySelector('.mzta-header-fixed');
 
     if (excludedArea && excludedArea.contains(event.target)) {
-        // If the click was inside the excluded area, do nothing
         return;
     }
 
     if ((!isDragging)&&(!isSomethingSelected())) {
-        // If no dragging has occurred, execute the selection code
         selectContentOnClick(event);
     }
-    // Remove the event listeners to prevent future executions
-    // document.removeEventListener('mousedown', selectContentOnMouseDown);
-    // document.removeEventListener('mousemove', selectContentOnMouseMove);
-    // document.removeEventListener('mouseup', selectContentOnMouseUp);
 }
 
 function selectContentOnClick(event) {
@@ -502,29 +381,17 @@ function selectContentOnClick(event) {
         return;
     }
 
-    // Prevent the default behavior of the click
     event.preventDefault();
 
-    // Get the element that was clicked
     var clickedElement = event.target;
 
-    // Traverse the DOM upwards to find the nearest parent div
     var parentDiv = clickedElement.closest('div');
 
     if (parentDiv) {
-        // Create a range object
         var range = document.createRange();
-
-        // Select the contents of the div
         range.selectNodeContents(parentDiv);
-
-        // Get the selection object
         var selection = window.getSelection();
-
-        // Clear any existing selections
         selection.removeAllRanges();
-
-        // Add the new range to the selection
         selection.addRange(range);
     }
 }
@@ -535,29 +402,22 @@ function doLog(msg){
     }
 }
 
-function run(){
-    if(!checkLoggedIn()){
-        // User not logged in
-        alert(browser.i18n.getMessage("chatgpt_user_not_logged_in"));
-    }else{
-        addCustomDiv(current_action,current_tabId,current_mailMessageId);
-        (async () => {
-            if(mztaDoCustomText === 1){
-                showCustomTextField();
-            } else {
-                await doProceed(current_message);
-            }
-            // Add an event listener to the document to detect clicks
-            document.addEventListener('mousedown', selectContentOnMouseDown);
-            document.addEventListener('mousemove', selectContentOnMouseMove);
-            document.addEventListener('mouseup', selectContentOnMouseUp);
-        })();
+async function run() {
+    try {
+        const isAuthenticated = await authenticateSession();
+        if (!isAuthenticated) {
+            alert("You are not logged in. Please log in to ChatGPT.");
+            return;
+        }
+        console.log("Session authenticated. Proceeding...");
+        // Add your UI logic here
+    } catch (error) {
+        console.error("Error during session authentication:", error.message);
+        alert("Failed to authenticate session. Please try again.");
     }
 }
 
-// In the content script
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    //console.log(">>>>>>>>>>>>> content.js onMessage: " + JSON.stringify(message));
     switch(message.command) {
         case "chatgpt_send":
             current_action = message.action;
@@ -582,3 +442,6 @@ let checkTab = setInterval(() => {
 }, 1000);
 
 `
+
+
+import { authenticateSession, sendPrompt, isSessionAuthenticated } from '../services/chatgptSessionManager.js';

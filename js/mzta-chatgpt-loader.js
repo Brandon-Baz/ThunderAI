@@ -16,12 +16,20 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const urlParams = new URLSearchParams(window.location.search);
-const call_id = urlParams.get('call_id');
+import { authenticateSession } from '../services/chatgptSessionManager.js';
 
-async function page_ready(call_id){
-    await browser.runtime.sendMessage({command: "chatgpt_web_ready_" + call_id});
+async function initializeChatGPTLoader() {
+    try {
+        const isAuthenticated = await authenticateSession();
+        if (!isAuthenticated) {
+            console.error("ChatGPT session is not authenticated. Please log in.");
+            return;
+        }
+        console.log("ChatGPT session authenticated successfully.");
+        // Proceed with any additional initialization logic if needed
+    } catch (error) {
+        console.error("Error during ChatGPT session initialization:", error.message);
+    }
 }
 
-page_ready(call_id);
-//console.log(">>>>>>>>>>> [ThunderAI] call_id: " + call_id)
+initializeChatGPTLoader();
