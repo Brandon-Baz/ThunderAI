@@ -23,6 +23,7 @@ import { OpenAI } from '../js/api/openai.js';
 import { Ollama } from '../js/api/ollama.js';
 import { OpenAIComp } from '../js/api/openai_comp.js'
 import { GoogleGemini } from '../js/api/google_gemini.js';
+import { GenericMiddleware } from '../js/api/generic_middleware.js';
 import { checkSparksPresence } from '../js/mzta-utils.js';
 
 let taLog = new taLogger("mzta-options",true);
@@ -107,6 +108,7 @@ function showConnectionOptions() {
   let ollama_api_display = 'none';
   let openai_comp_api_display = 'none';
   let google_gemini_api_display = 'none';
+  let generic_middleware_display = 'none';
   let conntype_select = document.getElementById("connection_type");
   let parent = conntype_select.parentElement.parentElement.parentElement;
   parent.classList.toggle("conntype_chatgpt_web", (conntype_select.value === "chatgpt_web"));
@@ -114,6 +116,7 @@ function showConnectionOptions() {
   parent.classList.toggle("conntype_ollama_api", (conntype_select.value === "ollama_api"));
   parent.classList.toggle("conntype_openai_comp_api", (conntype_select.value === "openai_comp_api"));
   parent.classList.toggle("conntype_google_gemini_api", (conntype_select.value === "google_gemini_api"));
+  parent.classList.toggle("conntype_generic_middleware", (conntype_select.value === "generic_middleware"));
   if (conntype_select.value === "chatgpt_web") {
     chatgpt_web_display = 'table-row';
   }else{
@@ -139,6 +142,11 @@ function showConnectionOptions() {
   }else{
     google_gemini_api_display = 'none';
   }
+  if (conntype_select.value === "generic_middleware") {
+    generic_middleware_display = 'table-row';
+  }else{
+    generic_middleware_display = 'none';
+  }
   document.querySelectorAll(".conntype_chatgpt_web").forEach(element => {
     element.style.display = chatgpt_web_display;
   });
@@ -153,6 +161,9 @@ function showConnectionOptions() {
   });
   document.querySelectorAll(".conntype_google_gemini_api").forEach(element => {
     element.style.display = google_gemini_api_display;
+  });
+  document.querySelectorAll(".conntype_generic_middleware").forEach(element => {
+    element.style.display = generic_middleware_display;
   });
 }
 
@@ -240,6 +251,28 @@ function warn_OpenAIComp_HostEmpty() {
       modelOpenAIComp.style.border = '2px solid red';
     }else{
       modelOpenAIComp.style.border = '';
+    }
+  }
+}
+
+function warn_GenericMiddleware_HostEmpty() {
+  let hostInput = document.getElementById('generic_middleware_host');
+  let btnUpdateGenericMiddlewareModels = document.getElementById('btnUpdateGenericMiddlewareModels');
+  let modelGenericMiddleware = document.getElementById('generic_middleware_model');
+  if(hostInput.value === ''){
+    hostInput.style.border = '2px solid red';
+    btnUpdateGenericMiddlewareModels.disabled = true;
+    modelGenericMiddleware.disabled = true;
+    modelGenericMiddleware.selectedIndex = -1;
+    modelGenericMiddleware.style.border = '';
+  }else{
+    hostInput.style.border = '';
+    btnUpdateGenericMiddlewareModels.disabled = false;
+    modelGenericMiddleware.disabled = false;
+    if((modelGenericMiddleware.selectedIndex === -1)||(modelGenericMiddleware.value === '')){
+      modelGenericMiddleware.style.border = '2px solid red';
+    }else{
+      modelGenericMiddleware.style.border = '';
     }
   }
 }
@@ -369,14 +402,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   conntype_select.addEventListener("change", warn_Ollama_HostEmpty);
   conntype_select.addEventListener("change", warn_OpenAIComp_HostEmpty);
   conntype_select.addEventListener("change", warn_GoogleGemini_APIKeyEmpty);
+  conntype_select.addEventListener("change", warn_GenericMiddleware_HostEmpty);
   conntype_select.addEventListener("change", disable_AddTags);
   conntype_select.addEventListener("change", disable_GetCalendarEvent);
   document.getElementById("chatgpt_api_key").addEventListener("change", warn_ChatGPT_APIKeyEmpty);
   document.getElementById("ollama_host").addEventListener("change", warn_Ollama_HostEmpty);
   document.getElementById("openai_comp_host").addEventListener("change", warn_OpenAIComp_HostEmpty);
   document.getElementById("google_gemini_api_key").addEventListener("change", warn_GoogleGemini_APIKeyEmpty);
+  document.getElementById("generic_middleware_host").addEventListener("change", warn_GenericMiddleware_HostEmpty);
 
-  let prefs = await browser.storage.sync.get({chatgpt_model: '', ollama_model: '', openai_comp_model: '', google_gemini_model: ''});
+  let prefs = await browser.storage.sync.get({chatgpt_model: '', ollama_model: '', openai_comp_model: '', google_gemini_model: '', generic_middleware_model: ''});
   
   // OpenAI API ChatGPT model fetching
   let select_chatgpt_model = document.getElementById('chatgpt_model');
@@ -556,11 +591,52 @@ select_openai_comp_model.addEventListener("change", warn_OpenAIComp_HostEmpty);
     warn_OpenAIComp_HostEmpty();
   });
 
+  // Generic Middleware API Model fetching
+  let select_generic_middleware_model = document.getElementById('generic_middleware_model');
+  const generic_middleware_option = document.createElement('option');
+  generic_middleware_option.value = prefs.generic_middleware_model;
+  generic_middleware_option.text = prefs.generic_middleware_model;
+  select_generic_middleware_model.appendChild(generic_middleware_option);
+  select_generic_middleware_model.addEventListener("change", warn_GenericMiddleware_HostEmpty);
+
+  document.getElementById('btnUpdateGenericMiddlewareModels').addEventListener('click', async () => {
+    document.getElementById('generic_middleware_model_fetch_loading').style.display = 'inline';
+    let generic_middleware = new GenericMiddleware(document.getElementById("generic_middleware_host").value , null, document.getElementById("generic_middleware_api_key").value, true, document.getElementById("generic_middleware_use_v1").checked);
+    generic_middleware.fetchModels().then((data) => {
+      if(!data.ok){
+        let errorDetail;
+        try {
+          errorDetail = JSON.parse(data.error);
+          errorDetail = errorDetail.error.message;
+        } catch (e) {
+          errorDetail = data.error;
+        }
+        document.getElementById('generic_middleware_model_fetch_loading').style.display = 'none';
+        console.error("[ThunderAI] " + browser.i18n.getMessage("GenericMiddleware_Models_Error_fetching"));
+        alert(browser.i18n.getMessage("GenericMiddleware_Models_Error_fetching")+": " + errorDetail);
+        return;
+      }
+      taLog.log("GenericMiddleware models: " + JSON.stringify(data));
+      data.response.forEach(model => {
+        if (!Array.from(select_generic_middleware_model.options).some(option => option.value === model.id)) {
+          const option = document.createElement('option');
+          option.value = model.id;
+          option.text = model.id;
+          select_generic_middleware_model.appendChild(option);
+        }
+      });
+      document.getElementById('generic_middleware_model_fetch_loading').style.display = 'none';
+    });
+    
+    warn_GenericMiddleware_HostEmpty();
+  });
+
   showConnectionOptions();
   warn_ChatGPT_APIKeyEmpty();
   warn_Ollama_HostEmpty();
   warn_OpenAIComp_HostEmpty();
   warn_GoogleGemini_APIKeyEmpty();
+  warn_GenericMiddleware_HostEmpty();
   disable_MaxPromptLength();
   disable_AddTags();
   disable_GetCalendarEvent();
@@ -596,6 +672,17 @@ select_openai_comp_model.addEventListener("change", warn_OpenAIComp_HostEmpty);
       passwordField_openai_comp_api_key.setAttribute('type', type);
 
       icon_img_openai_comp_api_key.src = type === 'password' ? "../images/pwd-show.png" : "../images/pwd-hide.png";
+  });
+
+  const passwordField_generic_middleware_api_key = document.getElementById('generic_middleware_api_key');
+  const toggleIcon_generic_middleware_api_key = document.getElementById('toggle_generic_middleware_api_key');
+  const icon_img_generic_middleware_api_key = document.getElementById('pwd-icon_generic_middleware_api_key');
+
+  toggleIcon_generic_middleware_api_key.addEventListener('click', () => {
+      const type = passwordField_generic_middleware_api_key.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordField_generic_middleware_api_key.setAttribute('type', type);
+
+      icon_img_generic_middleware_api_key.src = type === 'password' ? "../images/pwd-show.png" : "../images/pwd-hide.png";
   });
 
   const btnChatGPTWeb_Tab = document.getElementById('btnChatGPTWeb_Tab');
