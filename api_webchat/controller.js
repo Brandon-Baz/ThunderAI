@@ -37,7 +37,6 @@ const messagesArea = document.querySelector('messages-area');
 // Logging for debugging
 console.log("Controller initialized with LLM:", llm);
 
-// Ensure session is authenticated before proceeding
 (async () => {
     const isAuthenticated = await authenticateSession();
     if (!isAuthenticated) {
@@ -52,12 +51,40 @@ console.log("Controller initialized with LLM:", llm);
 let worker = null;
 
 switch (llm) {
-    case "chatgpt_api":
-        worker = new Worker('../js/workers/model-worker-openai.js', { type: 'module' });
+    case "chatgpt_api": {
+        const isAuthenticated = await isSessionAuthenticated();
+        if (!isAuthenticated) {
+            console.error("Session not authenticated. Please log in.");
+            throw new Error("Session not authenticated.");
+        }
+
+        const response = await sendPrompt("Initialize ChatGPT API", { model: "chatgpt" });
+        if (response.error) {
+            console.error("Error initializing ChatGPT API:", response.error);
+            throw new Error(response.error);
+        }
+
+        messagesArea.setLLMName("ChatGPT");
+        messagesArea.appendUserMessage("ChatGPT API initialized successfully.", "info");
         break;
-    case "google_gemini_api":
-        worker = new Worker('../js/workers/model-worker-google_gemini.js', { type: 'module' });
+    }
+    case "google_gemini_api": {
+        const isAuthenticated = await isSessionAuthenticated();
+        if (!isAuthenticated) {
+            console.error("Session not authenticated. Please log in.");
+            throw new Error("Session not authenticated.");
+        }
+
+        const response = await sendPrompt("Initialize Google Gemini API", { model: "gemini" });
+        if (response.error) {
+            console.error("Error initializing Google Gemini API:", response.error);
+            throw new Error(response.error);
+        }
+
+        messagesArea.setLLMName("Google Gemini");
+        messagesArea.appendUserMessage("Google Gemini API initialized successfully.", "info");
         break;
+    }
     case "ollama_api":
         worker = new Worker('../js/workers/model-worker-ollama.js', { type: 'module' });
         break;
@@ -74,15 +101,20 @@ messageInput.setMessagesArea(messagesArea);
 
 switch (llm) {
     case "chatgpt_api": {
-        let prefs_api = await browser.storage.sync.get({chatgpt_api_key: '', chatgpt_model: '', chatgpt_developer_messages:'', do_debug: false});
-        let i18nStrings = {};
-        i18nStrings["chatgpt_api_request_failed"] = browser.i18n.getMessage('chatgpt_api_request_failed');
-        i18nStrings["error_connection_interrupted"] = browser.i18n.getMessage('error_connection_interrupted');
-        messageInput.setModel(prefs_api.chatgpt_model);
+        const isAuthenticated = await isSessionAuthenticated();
+        if (!isAuthenticated) {
+            console.error("Session not authenticated. Please log in.");
+            throw new Error("Session not authenticated.");
+        }
+
+        const response = await sendPrompt("Initialize ChatGPT API", { model: "chatgpt" });
+        if (response.error) {
+            console.error("Error initializing ChatGPT API:", response.error);
+            throw new Error(response.error);
+        }
+
         messagesArea.setLLMName("ChatGPT");
-        worker.postMessage({ type: 'init', chatgpt_api_key: prefs_api.chatgpt_api_key, chatgpt_model: prefs_api.chatgpt_model, chatgpt_developer_messages: prefs_api.chatgpt_developer_messages, do_debug: prefs_api.do_debug, i18nStrings: i18nStrings});
-        messagesArea.appendUserMessage(browser.i18n.getMessage("chagpt_api_connecting") + " " +browser.i18n.getMessage("AndModel") + " \"" + prefs_api.chatgpt_model + "\"...", "info");
-        browser.runtime.sendMessage({command: "openai_api_ready_" + call_id, window_id: (await browser.windows.getCurrent()).id});
+        messagesArea.appendUserMessage("ChatGPT API initialized successfully.", "info");
         break;
     }
     case "google_gemini_api": {
@@ -124,26 +156,30 @@ switch (llm) {
 }
 
 // Event listeners for worker messages
-worker.onmessage = function(event) {
+worker.onmessage = async function(event) {
     const { type, payload } = event.data;
-    switch (type) {
-        case 'messageSent':
-            messageInput.handleMessageSent();
-            break;
-        case 'newToken':
-            messagesArea.handleNewToken(payload.token);
-            messageInput.setStatusMessage('Receiving data...');
-            break;
-        case 'tokensDone':
-            messagesArea.handleTokensDone(promptData);
-            messageInput.enableInput();
-            break;
-        case 'error':
-            messagesArea.appendBotMessage(payload,'error');
-            messageInput.enableInput();
-            break;
-        default:
-            console.error('[ThunderAI] Unknown event type from API worker:', type);
+    try {
+        switch (type) {
+            case 'messageSent':
+                messageInput.handleMessageSent();
+                break;
+            case 'newToken':
+                messagesArea.handleNewToken(payload.token);
+                messageInput.setStatusMessage('Receiving data...');
+                break;
+            case 'tokensDone':
+                messagesArea.handleTokensDone(promptData);
+                messageInput.enableInput();
+                break;
+            case 'error':
+                messagesArea.appendBotMessage(payload, 'error');
+                messageInput.enableInput();
+                break;
+            default:
+                console.error('[ThunderAI] Unknown event type from API worker:', type);
+        }
+    } catch (error) {
+        console.error("Error handling worker message:", error.message);
     }
 };
 

@@ -16,8 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// This script handles client-side logic for interacting with the ThunderAI backend.
-
+/**
+ * Handles sending a prompt to the backend API and updating the UI with the response.
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('promptForm');
     const promptInput = document.getElementById('promptInput');

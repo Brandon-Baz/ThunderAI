@@ -22,13 +22,13 @@ async function initializeChatGPTLoader() {
     try {
         const isAuthenticated = await authenticateSession();
         if (!isAuthenticated) {
-            console.error("ChatGPT session is not authenticated. Please log in.");
+            console.error("[ThunderAI] ChatGPT session is not authenticated. Please log in.");
             return;
         }
-        console.log("ChatGPT session authenticated successfully.");
-        // Proceed with any additional initialization logic if needed
+        console.log("[ThunderAI] ChatGPT session authenticated successfully.");
+        // Add any additional initialization logic here
     } catch (error) {
-        console.error("Error during ChatGPT session initialization:", error.message);
+        console.error("[ThunderAI] Error during ChatGPT session initialization:", error.message);
     }
 }
 

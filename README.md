@@ -37,7 +37,7 @@ For advanced users, the middleware service can be deployed in its own repository
 - `CHATGPT_API_URL`: The endpoint URL for sending prompts.
 - `SESSION_REFRESH_INTERVAL`: Interval (in seconds) to refresh the session state.
 
-For more details, refer to the [documentation](https://micz.it/thunderbird-addon-thunderai/).
+For more details, refer to the [documentation](docs/ChatGPT_Web_Session_Analysis.md).
 
 <br>
 

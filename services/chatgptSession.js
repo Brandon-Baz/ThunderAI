@@ -25,23 +25,20 @@ const logger = new taLogger('chatgptSession', true);
  * Handles ChatGPT session management and communication.
  */
 export class ChatGPTSession {
-    constructor(apiUrl, apiKey) {
-        this.apiUrl = apiUrl;
-        this.apiKey = apiKey;
+    constructor(apiBaseUrl) {
+        this.apiBaseUrl = apiBaseUrl;
     }
 
     /**
-     * Authenticates the session if required.
-     * @returns {Promise<boolean>} - Returns true if authentication is successful.
+     * Authenticates the session by querying the ChatGPT web API.
+     * @returns {Promise<boolean>} - Returns true if the session is authenticated.
      */
     async authenticateSession() {
         try {
-            const response = await fetch(`${this.apiUrl}/auth`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${this.apiKey}`,
-                },
+            logger.log('Authenticating ChatGPT session...');
+            const response = await fetch(`${this.apiBaseUrl}/api/auth/session`, {
+                method: 'GET',
+                credentials: 'include',
             });
 
             if (!response.ok) {
@@ -50,10 +47,18 @@ export class ChatGPTSession {
                 return false;
             }
 
-            logger.log('Authentication successful.');
-            return true;
+            const sessionData = await response.json();
+            const isAuthenticated = sessionData?.authenticated || false;
+
+            if (isAuthenticated) {
+                logger.log('Session authenticated successfully.');
+            } else {
+                logger.warn('Session not authenticated.');
+            }
+
+            return isAuthenticated;
         } catch (error) {
-            logger.error(`Error during authentication: ${error.message}`);
+            logger.error(`Error during session authentication: ${error.message}`);
             return false;
         }
     }
@@ -66,16 +71,17 @@ export class ChatGPTSession {
      */
     async sendPrompt(prompt, options = {}) {
         try {
+            logger.log('Sending prompt to ChatGPT...');
             const payload = {
                 prompt,
                 ...options,
             };
 
-            const response = await fetch(`${this.apiUrl}/chat`, {
+            const response = await fetch(`${this.apiBaseUrl}/api/chat`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${this.apiKey}`,
                 },
                 body: JSON.stringify(payload),
             });

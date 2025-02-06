@@ -1,7 +1,7 @@
 {
-  "name": "thunderai",
+  "name": "thunderai-middleware",
   "version": "1.0.0",
-  "description": "ThunderAI is a Thunderbird Addon that uses AI capabilities to enhance email management.",
+  "description": "Middleware service for ThunderAI to handle ChatGPT session management and prompt processing.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -33,10 +33,10 @@ let isDragging = false;
 async function chatgpt_sendMsg(prompt, options = {}) {
     try {
         const response = await sendPrompt(prompt, options);
-        console.log("Prompt sent successfully:", response);
+        console.log("[ThunderAI] Prompt sent successfully:", response);
         return response;
     } catch (error) {
-        console.error("Error sending prompt:", error.message);
+        console.error("[ThunderAI] Error sending prompt:", error.message);
         throw error;
     }
 }
@@ -62,99 +62,6 @@ function chatpgt_scrollToBottom () {
         document.querySelector('path[d^="M12 21C11.7348"]')?.parentNode?.parentNode?.click();
     }
     catch (err) { console.error('[ThunderAI] ', err); }
-}
-
-function addCustomDiv(prompt_action,tabId,mailMessageId) {
-    // Create <style> element for the CSS
-    var style = document.createElement('style');
-    style.textContent = ".mzta-header-fixed {position: fixed;bottom: 0;left: 0;height:100px;width: 100%;background-color: #333;color: white;text-align: center;padding: 10px 0;z-index: 1000;border-top: 3px solid white;}"
-    style.textContent += "body {padding-bottom: 100px !important;} [id^='headlessui-dialog-panel-:r']{padding-bottom: 100px !important;} [data-testid='screen-thread']{padding-bottom: 100px !important;} [slot='content']{padding-bottom: 100px !important;}";
-    style.textContent += ".mzta-btn {background-color: #007bff;border: none;color: white;padding: 8px 15px;text-align: center;text-decoration: none;display: inline-block;font-size: 16px;margin: 4px 2px;transition-duration: 0.4s;cursor: pointer;border-radius: 5px;}";
-    style.textContent += ".mzta-btn:hover {background-color:#0056b3;color:white;}";
-    style.textContent += ".btn_disabled {background-color: #6a829b !important;color: white !important;cursor: not-allowed;}";
-    style.textContent += ".btn_disabled:hover {background-color:#6a829b !important;color:white !important;}";
-    style.textContent += "#mzta-loading{height:50px;display:inline-block;}";
-    style.textContent += "#mzta-model_warn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-height:100%px;min-width:30%;max-width:50%;padding:3px;border-radius:5px;text-align:center;background-color:#FFBABA;border:1px solid;font-size:13px;color:#D8000C;display:none;}#mzta-model_warn a{color:blue;text-decoration: underline;}";
-    style.textContent += "#mzta-btn_model {background-color: #007bff;border: none;color: white;padding: 2px 4px;text-align: center;text-decoration: none;display: none;font-size: 13px;margin-left: 4px;transition-duration: 0.4s;cursor: pointer;border-radius: 2px;}";
-    style.textContent += "#mzta-status-page{position:fixed;bottom:0;left:0;padding-left:5px;font-size:13px;font-style:italic;text-decoration:underline;color:#919191;}";
-    style.textContent += "#mzta-force-completion{cursor:pointer;position:fixed;bottom:0;right:0;padding-right:5px;font-size:13px;font-style:italic;text-decoration:underline;color:#919191;}";
-    style.textContent += "#mzta-status-page:hover, #mzta-force-completion:hover{color:#007bff;}";
-    style.textContent += "#mzta-custom_text{padding:10px;width:auto;max-width:80%;height:auto;max-height:80%;border-radius:5px;overflow:auto;position:fixed;top:50%;left:50%;display:none;transform:translate(-50%,-50%);text-align:center;background:#333;color:white;border:3px solid white;}";
-    style.textContent += "#mzta-custom_loading{height:50px;display:none;}";
-    style.textContent += "#mzta-custom_textarea{color:black;padding:1px;font-size:15px;width:100%;}";
-    style.textContent += "#mzta-custom_info{text-align:center;width:100%;padding-bottom:10px;font-size:15px;}";
-    style.textContent += "#mzta-prompt-name{font-size:13px;font-style:italic;color:#919191;position:fixed;bottom:75px;;left:0;padding-left:5px;}";
-
-    // Add <style> to the page's <head>
-    document.head.appendChild(style);
-
-    // Fixed div
-    var fixedDiv = document.createElement('div');
-    fixedDiv.classList.add('mzta-header-fixed');
-    fixedDiv.textContent = '';
-
-    // Model warning div
-    var modelWarnDiv = document.createElement('div');
-    modelWarnDiv.id = 'mzta-model_warn';
-    modelWarnDiv.textContent = browser.i18n.getMessage("chatgpt_win_model_warning");
-    fixedDiv.appendChild(modelWarnDiv);
-
-    // GPT Model Button
-    var btn_model = document.createElement('button');
-    btn_model.id="mzta-btn_model";
-    btn_model.textContent = browser.i18n.getMessage("chatgpt_btn_model");
-    btn_model.onclick = async function() {
-        force_go = true;
-    };
-    modelWarnDiv.appendChild(btn_model);
-    
-    //prompt name
-    var prompt_name_div = document.createElement('div');
-    prompt_name_div.id = 'mzta-prompt-name';
-    prompt_name_div.title= browser.i18n.getMessage("currently_used_prompt");
-    prompt_name_div.textContent = mztaPromptName;
-    fixedDiv.appendChild(prompt_name_div);
-
-    //status page
-    var status_page_div = document.createElement('div');
-    status_page_div.id = 'mzta-status-page';
-    status_page_div.innerHTML = '<a href="https://micz.it/thunderbird-addon-thunderai/status/">'+ mztaStatusPageDesc +'</a>';
-    fixedDiv.appendChild(status_page_div);
-
-    //force completion
-    var force_completion_div = document.createElement('div');
-    force_completion_div.id = 'mzta-force-completion';
-    force_completion_div.textContent = mztaForceCompletionDesc;
-    force_completion_div.title = mztaForceCompletionTitle;
-    force_completion_div.addEventListener('click', function() {
-        do_force_completion = true;
-    });
-    fixedDiv.appendChild(force_completion_div);
-
-    //div per custom text
-    let customDiv = document.createElement('div');
-    customDiv.id = 'mzta-custom_text';
-    let customInfo = document.createElement('div');
-    customInfo.id = 'mzta-custom_info';
-    customInfo.textContent = browser.i18n.getMessage("chatgpt_win_custom_text");
-    customDiv.appendChild(customInfo);
-    let customTextArea = document.createElement('textarea');
-    customTextArea.id = 'mzta-custom_textarea';
-    customDiv.appendChild(customTextArea);
-    let customLoading = document.createElement('img');
-    customLoading.src = browser.runtime.getURL("/images/loading.gif");
-    customLoading.id = "mzta-custom_loading";
-    customDiv.appendChild(customLoading);
-    let customBtn = document.createElement('button');
-    customBtn.id = 'mzta-custom_btn';
-    customBtn.textContent = browser.i18n.getMessage("chatgpt_win_send");
-    customBtn.classList.add('mzta-btn');
-    customBtn.addEventListener("click", () => { customTextBtnClick({customBtn:customBtn,customLoading:customLoading,customDiv:customDiv}) });
-    customTextArea.addEventListener("keydown", (event) => { if(event.code == "Enter" && event.ctrlKey) customTextBtnClick({customBtn:customBtn,customLoading:customLoading,customDiv:customDiv}) });
-    customDiv.appendChild(customBtn);
-    fixedDiv.appendChild(customDiv);
-
-    document.body.insertBefore(fixedDiv, document.body.firstChild);
 }
 
 function customTextBtnClick(args) {
@@ -305,7 +212,7 @@ function removeTagsAndReturnHTML(rootElement, removeTags, preserveTags) {
 function replaceNewlinesWithBr(node) {
     for (let child of Array.from(node.childNodes)) {
         if (child.nodeType === Node.TEXT_NODE) {
-            const parts = child.textContent.split('\\\n');
+            const parts = child.textContent.split('\\\\n');
             if (parts.length > 1) {
                 const fragment = document.createDocumentFragment();
                 parts.forEach((part, index) => {
@@ -334,27 +241,9 @@ function getSelectedHtml() {
     return "";
 }
 
-function isSomethingSelected() {
-    var selection = window.getSelection();
-    return selection.rangeCount > 0 && !selection.isCollapsed;
-}
+<empty>
 
-document.addEventListener("selectionchange", function() {
-     clearTimeout(selectionChangeTimeout);
-     if(current_action === '0'){
-         return;
-     }
-     selectionChangeTimeout = setTimeout(function() {
-        let btn_ok = document.getElementById('mzta-btn_ok');
-        if (isSomethingSelected()) {
-            btn_ok.disabled = false;
-            btn_ok.classList.remove('btn_disabled');
-        } else {
-            btn_ok.disabled = true;
-            btn_ok.classList.add('btn_disabled');
-        }
-     }, 300);
-});
+<empty>
 
 function selectContentOnMouseDown(event) {
     isDragging = false;
